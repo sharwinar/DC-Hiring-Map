@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>DC Hiring Map</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.css" />
+        <style>
+            html, body {
+                height: 100%;
+                margin: 0;
+                font-family: Arial, sans-serif;
+            }
+            #map {
+                height: 100%;
+                width: 100%;
+            }
+            #filters {
+                position: absolute;
+                top: 20px;
+                left: 50px;
+                background: rgba(255, 255, 255, 0.9);
+                padding: 10px;
+                border-radius: 5px;
+                z-index: 1000;
+                font-size: 12px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            }
+            .filter-label {
+                margin-right: 5px;
+                font-weight: bold;
+            }
+            .legend {
+                position: absolute;
+                bottom: 20px;
+                left: 20px;
+                background: rgba(255, 255, 255, 0.8);
+                padding: 8px;
+                border-radius: 5px;
+                font-size: 12px;
+                box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+                z-index: 1000;
+            }
+            .legend-item {
+                display: flex;
+                align-items: center;
+                margin-bottom: 3px;
+            }
+            .legend-svg {
+                margin-right: 10px;
+            }
+            button {
+                margin-top: 10px;
+                display: block;
+                padding: 5px 10px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #0056b3;
+            }
+            .suggestions-box {
+                position: absolute;
+                background: white;
+                border: 1px solid #ccc;
+                max-height: 150px;
+                overflow-y: auto;
+                z-index: 1001;
+                width: calc(100% - 20px);
+                display: none;
+                border-radius: 3px;
+            }
+            .suggestion-item {
+                padding: 5px;
+                cursor: pointer;
+            }
+            .suggestion-item:hover {
+                background: #f0f0f0;
+            }
+            @keyframes blink {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        .blinking-icon {
+            animation: blink 1s infinite;
+        }
+        </style>
+    </head>    
+<body>
+    <div id="map"></div>
+    <div id="filters"></div>
+    <div class="legend" id="legend">
+        
+    </div>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([22.9734, 78.6569], 5);
+    
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+        }).addTo(map);
+
+        var bounds = [[6.0, 66.0], [35.0, 99.0]]; // Lat: [6.0, 37.0], Lon: [66.0, 97.0]
+        map.setMaxBounds(bounds);
+        map.fitBounds(bounds);
+    
+        var markersLayer = L.layerGroup().addTo(map);
+        var linesLayer = L.layerGroup().addTo(map);
+        var currentpin = null;
+        map.doubleClickZoom.disable();
+    
+        map.on('dblclick', function (e) {
+            const { lat, lng } = e.latlng;
+    
+            if (currentpin) map.removeLayer(currentpin);
+    
+            currentpin = L.marker([lat, lng]).addTo(map)
+                .bindPopup(`Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`).openPopup();
+    
+            console.log(`Latitude: ${lat}, Longitude: ${lng}`);
+    
+            currentpin.on('dblclick', function () {
+                map.removeLayer(currentpin);
+                currentpin = null;
+            });
+        });
+    
+        function loadMarkers() {
+            fetch('/markers')
+                .then(response => response.json())
+                .then(data => {
+                    updateMarkers(data);
+                    updateLegend(data);
+                });
+        }
+    
+        function updateMarkers(markerData) {
+            markersLayer.clearLayers();
+    
+            markerData.forEach(marker => {
+                const lat = parseFloat(marker.latitude);
+                const lng = parseFloat(marker.longitude);
+                if (isNaN(lat) || isNaN(lng)) return;
+    
+                let color = marker.color || 'gray';
+                let iconHTML = `<div class="${marker.color === 'red' ? 'blinking-icon' : ''}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                        <path fill="${color}" stroke="#fff" stroke-width="0.8" d="M12 2C8.1 2 5 5.1 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.9-3.1-7-7-7z"/>
+                        <circle cx="12" cy="8" r="3" fill="white" />
+                    </svg>
+                </div>`;
+    
+                let leafletMarker = L.marker([lat, lng], {
+                    icon: L.divIcon({ className: 'custom-icon', html: iconHTML })
+                }).addTo(markersLayer);
+    
+                leafletMarker.bindPopup(`
+                    <b>${marker.location}</b><br>
+                    ${marker.Emp_Id ? `Emp ID: ${marker.Emp_Id}<br>` : 'Emp ID: No<br>'}
+                    ${marker.Emp_Name ? `Emp Name: ${marker.Emp_Name}<br>` : 'Emp Name: No<br>'}
+                    Latitude: ${lat}, Longitude: ${lng}
+                `);
+    
+                leafletMarker.on('mouseover', function () {
+                    this.openPopup();
+                });
+                leafletMarker.on('mouseout', function () {
+                    this.closePopup();
+                });
+            });
+        }
+    
+        function updateLegend(markerData) {
+    const legend = document.getElementById('legend');
+    legend.innerHTML = '';
+
+    let totalLocations = 0;
+    let activeCount = 0;
+    let inactiveCount = 0;
+    let mrfCreatedCount = 0;
+    let potentialExitCount = 0;
+    let proposedLocationCount = 0;
+
+    markerData.forEach(marker => {
+        if (marker.color === 'LightSeaGreen') {
+        proposedLocationCount++; // Count proposed locations separately
+        } else {
+            totalLocations++; // Only count actual locations
+        }
+
+        if (marker.color === 'green') activeCount++; // Active locations
+        if (marker.color === 'Gold') inactiveCount++; // Inactive locations
+        if (marker.mrf_id && marker.mrf_id !== '' && marker.Emp_Id == '') mrfCreatedCount++; // MRF created
+        if (marker.color === 'red') potentialExitCount++; // Potential exit
+    });
+
+    let legendContent = `
+        <div class="legend-item"><b>Statistics:</b></div>
+        <div class="legend-item"><b>Total Locations: </b> ${totalLocations}</div>
+        <div class="legend-item"><b>Active Locations: </b> ${activeCount}</div>
+        <div class="legend-item"><b>Inactive Locations: </b> ${inactiveCount}</div>
+        <div class="legend-item"><b>MRF Approved: </b> ${mrfCreatedCount}</div>
+        <div class="legend-item"><b>Potential Exits: </b> ${potentialExitCount}</div>
+        <br>
+        ${generateLegendItem('green', 'Active Location')}
+        ${generateLegendItem('Gold', 'Hiring Location')}
+        ${generateLegendItem('red', 'Potential Exit')}
+        ${generateLegendItem('LawnGreen', 'MRF Approved')}
+    `;
+
+    legend.innerHTML = legendContent;
+}
+
+// Function to create SVG legend icons dynamically
+function generateLegendItem(color, label) {
+    return `
+        <div class="legend-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                <path fill="${color}" stroke="#fff" stroke-width="0.8" d="M12 2C8.1 2 5 5.1 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.9-3.1-7-7-7z"/>
+                <circle cx="12" cy="8" r="3" fill="white" />
+            </svg>
+            <span style="margin-left: 8px;">${label}</span>
+        </div>
+    `;
+}    
+        loadMarkers();
+    </script>
+</body>
+</html>
