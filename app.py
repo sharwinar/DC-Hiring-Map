@@ -15,6 +15,14 @@ CORS(app)
 
 # Define OAuth 2.0 credentials and scope
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly', 'https://www.googleapis.com/auth/drive.readonly']
+import base64
+
+GOOGLE_CREDS_B64 = os.environ.get('GOOGLE_CREDS_B64')
+
+if not os.path.exists('credentials.json') and GOOGLE_CREDS_B64:
+    with open('credentials.json', 'wb') as f:
+        f.write(base64.b64decode(GOOGLE_CREDS_B64))
+
 CLIENT_SECRET_FILE = 'credentials.json'
 API_NAME = 'sheets'
 API_VERSION = 'v4'
