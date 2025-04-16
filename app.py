@@ -16,7 +16,6 @@ CORS(app)
 # Define OAuth 2.0 credentials and scope
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly', 'https://www.googleapis.com/auth/drive.readonly']
 import base64
-
 GOOGLE_CREDS_B64 = os.environ.get('GOOGLE_CREDS_B64')
 
 if not os.path.exists('credentials.json') and GOOGLE_CREDS_B64:
