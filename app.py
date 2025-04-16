@@ -1,13 +1,7 @@
 import os
-import pickle
 from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 import pandas as pd
-import gspread
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
-import geopandas as gpd
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -30,41 +24,31 @@ def index():
 
 @app.route('/markers', methods=['GET'])
 def get_markers():
-    data = get_sheet_data(SHEET_ID, SHEET_NAME)
+    data = get_sheet_data()
     markers = []
-    
+
     for _, row in data.iterrows():
         if pd.notna(row['Location Lat']) and pd.notna(row['Location Lon']):
-            color = 'blue'  # Default color for all locations
-            if row.get('Active Location', '').strip().lower() == 'yes':
+            color = 'blue'
+            if str(row.get('Active Location', '')).strip().lower() == 'yes':
                 color = 'green'
-            elif row.get('Active Location', '').strip().lower() == 'no':
+            elif str(row.get('Active Location', '')).strip().lower() == 'no':
                 color = 'Gold'
-            if row.get('Potential Exit', '').strip().lower() == 'yes':
+            if str(row.get('Potential Exit', '')).strip().lower() == 'yes':
                 color = 'red'
-            if row.get('Active Location', '').strip().lower() == 'no' and row.get('BPHR Remarks', '').strip().lower() != '':
+            if str(row.get('Active Location', '')).strip().lower() == 'no' and str(row.get('BPHR Remarks', '')).strip() != '':
                 color = 'LawnGreen'
-            
+
             markers.append({
-                'location': row['Location'],
+                'location': row.get('Location', 'Unknown'),
                 'latitude': row['Location Lat'],
                 'longitude': row['Location Lon'],
                 'color': color,
-                'mrf_id':row.get('BPHR Remarks', 'N/A'),
+                'mrf_id': row.get('BPHR Remarks', 'N/A'),
                 'Emp_Id': row.get('Emp ID', 'N/A'),
                 'Emp_Name': row.get('Emp Name', 'N/A')
             })
-        
-        # Separate New Proposed Locations
-        # if pd.notna(row['New Proposed Lat']) and pd.notna(row['New Proposed Lon']):
-        #     markers.append({
-        #         'location': row['New Proposed Location'],
-        #         'latitude': row['New Proposed Lat'],
-        #         'longitude': row['New Proposed Lon'],
-        #         'color': 'Purple',
-        #         'mrf_id': 'Proposed Location'
-        #     })
-    
+
     return jsonify(markers)
 
 # Run the Flask app
