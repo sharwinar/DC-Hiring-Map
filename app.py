@@ -42,9 +42,6 @@ def authenticate():
             pickle.dump(creds, token)
     return build(API_NAME, API_VERSION, credentials=creds)
 
-# Load GeoJSON for state boundaries
-geo_data = gpd.read_file('india_states.geojson')
-
 # Google Sheets Details
 SHEET_ID = '1Cw65h0KVhJqKaYz-JnjXJ6cv59ssUTwXRiL6LErfwjA'
 SHEET_NAME = 'Ramp Up'
@@ -98,10 +95,6 @@ def get_markers():
         #     })
     
     return jsonify(markers)
-
-@app.route('/geojson')
-def get_geojson():
-    return jsonify(geo_data.__geo_interface__)
 
 # Run the Flask app
 if __name__ == '__main__':
