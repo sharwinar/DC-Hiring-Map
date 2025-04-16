@@ -13,45 +13,16 @@ import geopandas as gpd
 app = Flask(__name__)
 CORS(app)
 
-# Define OAuth 2.0 credentials and scope
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly', 'https://www.googleapis.com/auth/drive.readonly']
-import base64
-GOOGLE_CREDS_B64 = os.environ.get('GOOGLE_CREDS_B64')
+# Published CSV URL of your Google Sheet
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjE0hdLpES-YfU7lX_bkiC4a8nOwL2op0LFro50yA4RxLk2Yu2sqIdxa4sedBRL6sezfEUzoylMZVB/pub?gid=349896899&single=true&output=csv"
 
-if not os.path.exists('credentials.json') and GOOGLE_CREDS_B64:
-    with open('credentials.json', 'wb') as f:
-        f.write(base64.b64decode(GOOGLE_CREDS_B64))
-
-CLIENT_SECRET_FILE = 'credentials.json'
-API_NAME = 'sheets'
-API_VERSION = 'v4'
-
-# Authenticate Google Sheets API
-def authenticate():
-    creds = None
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-    return build(API_NAME, API_VERSION, credentials=creds)
-
-# Google Sheets Details
-SHEET_ID = '1Cw65h0KVhJqKaYz-JnjXJ6cv59ssUTwXRiL6LErfwjA'
-SHEET_NAME = 'Ramp Up'
-
-def get_sheet_data(sheet_id, sheet_name):
-    service = authenticate()
-    sheet = service.spreadsheets().values()
-    result = sheet.get(spreadsheetId=sheet_id, range=sheet_name).execute()
-    values = result.get('values', [])
-    return pd.DataFrame(values[1:], columns=values[0]) if values else pd.DataFrame()
+def get_sheet_data():
+    try:
+        df = pd.read_csv(CSV_URL)
+        return df
+    except Exception as e:
+        print(f"Error fetching sheet: {e}")
+        return pd.DataFrame()
 
 @app.route('/')
 def index():
